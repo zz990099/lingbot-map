@@ -459,7 +459,7 @@ class AggregatorStream(AggregatorBase):
 
         if self.export_mode:
             if tokens.shape != (B, S_local * P, C):
-                tokens = tokens.view(B, S_local, P, C).view(B, S_local * P, C)
+                tokens = tokens.reshape(B, S_local * P, C)
             if pos is not None and pos.shape != (B, S_global * P, 2):
                 pos = pos.view(B, S_global, P, 2).view(B, S_global * P, 2)
 

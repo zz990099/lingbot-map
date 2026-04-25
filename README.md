@@ -83,10 +83,30 @@ pip install onnx onnxscript
 
 ### ONNX Export
 
-You can export the PyTorch model to ONNX with the provided utility:
+You can export the PyTorch model to ONNX with the provided utility.
+
+Default usage exports the model as **multiple ONNX parts**:
+
+- `patch_embed.onnx`
+- `frame_global_group_00.onnx` … `frame_global_group_23.onnx`
+- `camera_head.onnx`
+- `depth_head.onnx`
+- `point_head.onnx`
+- `local_point_head.onnx` (if enabled)
+- `manifest.json`
 
 ```bash
 python export_onnx.py \
+    --model_path /path/to/lingbot-map-long.pt \
+    --output_dir /path/to/onnx_export/ \
+    --device cpu
+```
+
+If you still want a single-file export, use:
+
+```bash
+python export_onnx.py \
+    --layout full \
     --model_path /path/to/lingbot-map-long.pt \
     --output_path /path/to/lingbot-map.onnx \
     --device cpu
@@ -103,7 +123,8 @@ Current export path is intended for **offline ONNX graph export**:
 - it forces the model onto the SDPA path
 - it disables FlashInfer / paged KV cache export
 - it disables rotary position embeddings during export
-- it exports a stateless graph for batch inputs `images: [B, S, 3, H, W]`
+- split export follows the deployment sketch by separating patch embedding, 24 frame/global groups, and heads
+- it exports stateless graphs for batch inputs `images: [B, S, 3, H, W]`
 
 # 📦 Model Download
 

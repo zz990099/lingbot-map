@@ -51,7 +51,7 @@ class PositionGetter:
             Tensor of shape (batch_size, height*width, 2) containing y,x coordinates
             for each position in the grid, repeated for each batch item.
         """
-        cache_key = (height, width) if type(height) is int and type(width) is int else None
+        cache_key = (height, width) if isinstance(height, int) and isinstance(width, int) else None
         cache_miss = cache_key is None or cache_key not in self.position_cache
 
         if cache_miss:
@@ -104,7 +104,7 @@ class RotaryPositionEmbedding2D(nn.Module):
         Returns:
             Tuple of (cosine, sine) tensors for frequency components.
         """
-        cache_key = (dim, seq_len, device, dtype) if type(dim) is int and type(seq_len) is int else None
+        cache_key = (dim, seq_len, device, dtype) if isinstance(dim, int) and isinstance(seq_len, int) else None
         cache_miss = cache_key is None or cache_key not in self.frequency_cache
 
         if cache_miss:
