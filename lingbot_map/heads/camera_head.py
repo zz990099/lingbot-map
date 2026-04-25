@@ -254,6 +254,7 @@ class CameraCausalHead(nn.Module):
         self.pos_cache = None
         self.frame_idx = 0
         self.cp_size = 1
+        self.export_mode = False
 
         ## Get cp size if enable ulysses cp
         if self.enable_ulysses_cp:
@@ -271,6 +272,9 @@ class CameraCausalHead(nn.Module):
         del self.kv_cache
         self.kv_cache = None
         self.frame_idx = 0
+
+    def set_export_mode(self, enabled: bool):
+        self.export_mode = enabled
 
     def forward(self, aggregated_tokens_list: list, mask=None, num_iterations: int = None, causal_inference=False, num_frame_per_block=1, num_frame_for_scale=-1, sliding_window_size=None, **kwargs) -> list:
         """
@@ -374,7 +378,7 @@ class CameraCausalHead(nn.Module):
             pose_tokens_modulated = pose_tokens_modulated + pose_tokens
 
             for idx in range(self.trunk_depth):
-                pose_tokens_modulated = self.trunk[idx](pose_tokens_modulated, pos=pos3d, video_mask=mask, num_frames=S*self.cp_size, frame_seqlen=1, kv_cache=self.kv_cache[i] if self.kv_cache is not None else None, global_idx=idx, num_frame_per_block=num_frame_per_block, num_frame_for_scale=num_frame_for_scale, sliding_window_size=sliding_window_size, enable_ulysses_cp=self.enable_ulysses_cp, enable_3d_rope=self.enable_3d_rope, is_scale_frames=is_scale_frames)
+                pose_tokens_modulated = self.trunk[idx](pose_tokens_modulated, pos=pos3d, video_mask=mask, num_frames=S*self.cp_size, frame_seqlen=1, kv_cache=self.kv_cache[i] if self.kv_cache is not None else None, global_idx=idx, num_frame_per_block=num_frame_per_block, num_frame_for_scale=num_frame_for_scale, sliding_window_size=sliding_window_size, enable_ulysses_cp=self.enable_ulysses_cp, enable_3d_rope=self.enable_3d_rope and not self.export_mode, is_scale_frames=is_scale_frames, full_attention=self.export_mode)
             # Compute the delta update for the pose encoding.
             pred_pose_enc_delta = self.pose_branch(self.trunk_norm(pose_tokens_modulated))
 

@@ -160,7 +160,7 @@ class CausalAttention(nn.Module):
         self.kv_cache_include_scale_frames = kv_cache_include_scale_frames
         self.kv_cache_camera_only = kv_cache_camera_only
 
-    def forward(self, x: Tensor, block_mask=None, pos=None, pos_kv=None, frame_seqlen=None, video_mask=None, kv_cache=None, current_start=0, current_end=0, global_idx=0, num_frame_per_block=1, num_frame_for_scale=-1, enable_3d_rope=False, sliding_window_size=-1, attend_to_scale_frames=False, num_random_frames=0, attend_to_special_tokens=False, num_register_tokens=4, enable_ulysses_cp=False, is_scale_frames=False) -> Tensor:
+    def forward(self, x: Tensor, block_mask=None, pos=None, pos_kv=None, frame_seqlen=None, video_mask=None, kv_cache=None, current_start=0, current_end=0, global_idx=0, num_frame_per_block=1, num_frame_for_scale=-1, enable_3d_rope=False, sliding_window_size=-1, attend_to_scale_frames=False, num_random_frames=0, attend_to_special_tokens=False, num_register_tokens=4, enable_ulysses_cp=False, is_scale_frames=False, full_attention: bool = False) -> Tensor:
         B, N, C = x.shape
 
         # Calculate special token indices
@@ -173,6 +173,33 @@ class CausalAttention(nn.Module):
 
         if self.gate_proj is not None:
             gate_score = self.gate_proj(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        if full_attention:
+            if enable_ulysses_cp:
+                q, k, v = gather_seq_scatter_heads_qkv(q, k, v, seq_dim=2, head_dim=1)
+            q, k = self.q_norm(q), self.k_norm(k)
+            if self.rope is not None and not enable_3d_rope:
+                q = self.rope(q, pos)
+                k = self.rope(k, pos)
+            elif enable_3d_rope and pos is not None:
+                q = apply_rotary_emb(q, pos)
+                k = apply_rotary_emb(k, pos)
+
+            x = F.scaled_dot_product_attention(
+                q,
+                k,
+                v,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
+            )
+
+            if self.gate_proj is not None:
+                x = x * torch.sigmoid(gate_score)
+            if enable_ulysses_cp:
+                x = gather_heads_scatter_seq(x, seq_dim=2, head_dim=1)
+            x = x.transpose(1, 2).reshape(B, -1, self.num_heads * self.head_dim)
+            x = self.proj(x)
+            x = self.proj_drop(x)
+            return x
+
         if kv_cache is None:
             q, k = self.q_norm(q), self.k_norm(k)
             if enable_ulysses_cp:

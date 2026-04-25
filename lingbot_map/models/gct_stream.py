@@ -247,6 +247,12 @@ class GCTStream(GCTBase):
         else:
             logger.warning("Camera head does not support KV cache cleaning")
 
+    def set_export_mode(self, enabled: bool):
+        if hasattr(self.aggregator, "set_export_mode"):
+            self.aggregator.set_export_mode(enabled)
+        if self.camera_head is not None and hasattr(self.camera_head, "set_export_mode"):
+            self.camera_head.set_export_mode(enabled)
+
     def _set_skip_append(self, skip: bool):
         """Set _skip_append flag on all KV caches (aggregator + camera head).
 

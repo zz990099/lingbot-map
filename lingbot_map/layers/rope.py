@@ -51,14 +51,19 @@ class PositionGetter:
             Tensor of shape (batch_size, height*width, 2) containing y,x coordinates
             for each position in the grid, repeated for each batch item.
         """
-        if (height, width) not in self.position_cache:
+        cache_key = (height, width) if type(height) is int and type(width) is int else None
+        cache_miss = cache_key is None or cache_key not in self.position_cache
+
+        if cache_miss:
             y_coords = torch.arange(height, device=device)
             x_coords = torch.arange(width, device=device)
             positions = torch.cartesian_prod(y_coords, x_coords)
-            self.position_cache[height, width] = positions
+            if cache_key is not None:
+                self.position_cache[cache_key] = positions
 
-        cached_positions = self.position_cache[height, width]
-        return cached_positions.view(1, height * width, 2).expand(batch_size, -1, -1).clone()
+        if cache_key is not None:
+            positions = self.position_cache[cache_key]
+        return positions.view(1, height * width, 2).expand(batch_size, -1, -1).clone()
 
 
 class RotaryPositionEmbedding2D(nn.Module):
@@ -99,8 +104,10 @@ class RotaryPositionEmbedding2D(nn.Module):
         Returns:
             Tuple of (cosine, sine) tensors for frequency components.
         """
-        cache_key = (dim, seq_len, device, dtype)
-        if cache_key not in self.frequency_cache:
+        cache_key = (dim, seq_len, device, dtype) if type(dim) is int and type(seq_len) is int else None
+        cache_miss = cache_key is None or cache_key not in self.frequency_cache
+
+        if cache_miss:
             # Compute frequency bands
             exponents = torch.arange(0, dim, 2, device=device).float() / dim
             inv_freq = 1.0 / (self.base_frequency**exponents)
@@ -114,7 +121,11 @@ class RotaryPositionEmbedding2D(nn.Module):
             angles = torch.cat((angles, angles), dim=-1)
             cos_components = angles.cos().to(dtype)
             sin_components = angles.sin().to(dtype)
-            self.frequency_cache[cache_key] = (cos_components, sin_components)
+            if cache_key is not None:
+                self.frequency_cache[cache_key] = (cos_components, sin_components)
+
+        if cache_key is None:
+            return cos_components, sin_components
 
         return self.frequency_cache[cache_key]
 

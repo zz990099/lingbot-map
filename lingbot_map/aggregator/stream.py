@@ -82,6 +82,8 @@ class AggregatorStream(AggregatorBase):
         self.kv_cache_include_scale_frames = kv_cache_include_scale_frames
         self.kv_cache_camera_only = kv_cache_camera_only
 
+        self.export_mode = False
+
         # Pop kwargs that are passed but not needed by base class
         kwargs.pop('enable_stream_inference', None)
         use_flashinfer = kwargs.pop('use_flashinfer', True)
@@ -194,6 +196,9 @@ class AggregatorStream(AggregatorBase):
                 logger.info(f"SDPA KV cache initialized with {self.depth} blocks")
         else:
             logger.info("FlashInfer KV cache will be lazily initialized on first forward")
+
+    def set_export_mode(self, enabled: bool):
+        self.export_mode = enabled
 
     def _get_flashinfer_manager(self, device, dtype, tokens_per_frame=None):
         """Lazily initialize FlashInferKVCacheManager on first use.
@@ -451,6 +456,32 @@ class AggregatorStream(AggregatorBase):
         """
         # Get effective parameters
         scale_frames = num_frame_for_scale if num_frame_for_scale is not None else self.num_frame_for_scale
+
+        if self.export_mode:
+            if tokens.shape != (B, S_local * P, C):
+                tokens = tokens.view(B, S_local, P, C).view(B, S_local * P, C)
+            if pos is not None and pos.shape != (B, S_global * P, 2):
+                pos = pos.view(B, S_global, P, 2).view(B, S_global * P, 2)
+
+            intermediates = []
+            for _ in range(self.aa_block_size):
+                tokens = self.global_blocks[global_idx](
+                    tokens,
+                    pos=pos,
+                    enable_ulysses_cp=False,
+                    num_patches=P - self.num_special_tokens,
+                    num_special=self.num_special_tokens,
+                    num_frames=S_global,
+                    enable_3d_rope=False,
+                    kv_cache=None,
+                    global_idx=global_idx,
+                    num_frame_per_block=num_frame_per_block,
+                    num_frame_for_scale=scale_frames,
+                    num_register_tokens=self.num_register_tokens,
+                )
+                global_idx += 1
+                intermediates.append(tokens.view(B, S_local, P, C))
+            return tokens, global_idx, intermediates
 
         # Reshape tokens: [B*S_local, P, C] -> [B, S_local*P, C]
         if tokens.shape != (B, S_local * P, C):

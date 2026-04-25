@@ -9,6 +9,10 @@ import torch
 import torch.nn.functional as F
 
 
+def _expm1_compat(x: torch.Tensor) -> torch.Tensor:
+    return torch.exp(x) - 1
+
+
 def activate_pose(pred_pose_enc, trans_act="linear", quat_act="linear", fl_act="linear"):
     """
     Activate pose parameters with specified activation functions.
@@ -80,7 +84,7 @@ def activate_head(out, activation="norm_exp", conf_activation="expp1"):
     if activation == "norm_exp":
         d = xyz.norm(dim=-1, keepdim=True).clamp(min=1e-8)
         xyz_normed = xyz / d
-        pts3d = xyz_normed * torch.expm1(d)
+        pts3d = xyz_normed * _expm1_compat(d)
     elif activation == "norm":
         pts3d = xyz / xyz.norm(dim=-1, keepdim=True)
     elif activation == "exp":
@@ -122,4 +126,4 @@ def inverse_log_transform(y):
     Returns:
         Transformed tensor
     """
-    return torch.sign(y) * (torch.expm1(torch.abs(y)))
+    return torch.sign(y) * _expm1_compat(torch.abs(y))

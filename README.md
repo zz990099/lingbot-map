@@ -75,6 +75,36 @@ pip install flashinfer-python -i https://flashinfer.ai/whl/cu128/torch2.9/
 pip install -e ".[vis]"
 ```
 
+**6. ONNX export dependencies (optional)**
+
+```bash
+pip install onnx onnxscript
+```
+
+### ONNX Export
+
+You can export the PyTorch model to ONNX with the provided utility:
+
+```bash
+python export_onnx.py \
+    --model_path /path/to/lingbot-map-long.pt \
+    --output_path /path/to/lingbot-map.onnx \
+    --device cpu
+```
+
+Useful flags:
+
+- `--disable_camera` / `--disable_depth` / `--disable_point` to export only the heads you need
+- `--enable_local_point` to include the local point head outputs
+- `--patch_embed conv --embed_dim 256` for lightweight smoke tests without a pretrained DINO patch embed
+
+Current export path is intended for **offline ONNX graph export**:
+
+- it forces the model onto the SDPA path
+- it disables FlashInfer / paged KV cache export
+- it disables rotary position embeddings during export
+- it exports a stateless graph for batch inputs `images: [B, S, 3, H, W]`
+
 # 📦 Model Download
 
 | Model Name | Huggingface Repository | ModelScope Repository | Description |
