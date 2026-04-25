@@ -20,6 +20,12 @@ DEFAULT_OUTPUTS = (
 )
 
 
+def _default_selected_feature_groups(num_groups: int) -> list[int]:
+    if num_groups != 24:
+        return sorted({max(0, round((num_groups - 1) * ratio)) for ratio in (0.2, 0.48, 0.74, 1.0)})
+    return [4, 11, 17, 23]
+
+
 def _ensure_onnx_export_dependencies():
     missing = []
     for package_name in ("onnx", "onnxscript"):
@@ -417,11 +423,12 @@ def export_split_checkpoint_to_onnx(
         embed_dim * 2,
         device=torch_device,
     )
+    selected_feature_groups = _default_selected_feature_groups(len(model.aggregator.frame_blocks))
     manifest = {
         "export_layout": "split",
         "patch_start_idx": model.aggregator.patch_start_idx,
         "num_special_tokens": model.aggregator.num_special_tokens,
-        "selected_feature_groups": [4, 11, 17, 23],  # The model taps 4 evenly spaced multi-scale outputs from the 24 frame/global groups.
+        "selected_feature_groups": selected_feature_groups,
         "rope_disabled_for_export": True,
         "files": {},
     }
