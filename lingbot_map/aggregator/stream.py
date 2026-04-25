@@ -464,8 +464,9 @@ class AggregatorStream(AggregatorBase):
                 pos = pos.view(B, S_global, P, 2).view(B, S_global * P, 2)
 
             intermediates = []
-            for _ in range(self.aa_block_size):
-                tokens = self.global_blocks[global_idx](
+            for block_offset in range(self.aa_block_size):
+                current_global_idx = global_idx + block_offset
+                tokens = self.global_blocks[current_global_idx](
                     tokens,
                     pos=pos,
                     enable_ulysses_cp=False,
@@ -474,14 +475,13 @@ class AggregatorStream(AggregatorBase):
                     num_frames=S_global,
                     enable_3d_rope=False,
                     kv_cache=None,
-                    global_idx=global_idx,
+                    global_idx=current_global_idx,
                     num_frame_per_block=num_frame_per_block,
                     num_frame_for_scale=scale_frames,
                     num_register_tokens=self.num_register_tokens,
                 )
-                global_idx += 1
                 intermediates.append(tokens.view(B, S_local, P, C))
-            return tokens, global_idx, intermediates
+            return tokens, global_idx + self.aa_block_size, intermediates
 
         # Reshape tokens: [B*S_local, P, C] -> [B, S_local*P, C]
         if tokens.shape != (B, S_local * P, C):
