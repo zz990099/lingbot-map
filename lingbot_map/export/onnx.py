@@ -421,7 +421,7 @@ def export_split_checkpoint_to_onnx(
         "export_layout": "split",
         "patch_start_idx": model.aggregator.patch_start_idx,
         "num_special_tokens": model.aggregator.num_special_tokens,
-        "selected_feature_groups": [4, 11, 17, 23],
+        "selected_feature_groups": [4, 11, 17, 23],  # Multi-scale feature taps used by the dense heads.
         "rope_disabled_for_export": True,
         "files": {},
     }

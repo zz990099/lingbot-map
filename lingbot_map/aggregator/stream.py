@@ -464,7 +464,7 @@ class AggregatorStream(AggregatorBase):
                 pos = pos.view(B, S_global, P, 2).view(B, S_global * P, 2)
 
             intermediates = []
-            for block_idx in range(self.aa_block_size):
+            for _ in range(self.aa_block_size):
                 tokens = self.global_blocks[global_idx](
                     tokens,
                     pos=pos,
