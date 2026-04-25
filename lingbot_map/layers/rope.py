@@ -54,6 +54,8 @@ class PositionGetter:
         cache_key = (height, width) if isinstance(height, int) and isinstance(width, int) else None
         cache_miss = cache_key is None or cache_key not in self.position_cache
 
+        cos_components = None
+        sin_components = None
         if cache_miss:
             y_coords = torch.arange(height, device=device)
             x_coords = torch.arange(width, device=device)
