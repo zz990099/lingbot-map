@@ -1,0 +1,29 @@
+这是lingbot-map的仓库，我们希望理清仓库、模型结构，将模型部署到边缘设备jetson orin上，部署代码使用cpp语言。
+
+首先，我先阐述我对模型推理流程的理解，需要你结合实际代码，判断我的阐述是否正确，并纠正。
+
+1. Lingbot-map的推理分为两个阶段：初始多帧阶段，后续流式推理阶段。
+
+2. 在初始多帧阶段，获取到N帧图像，送入dinov2编码器，得到image_tokens，concat上一些special_tokens后，
+输入到frame_attention_0_block，得到frame_tokens_0，再输入global_attention_0_block，
+得到global_tokens_0，此后重复输入给frame_attention和global_attention。默认重复24次。
+并获取其中某几个索引的global_tokens_i, 输入到camera_head或depth_head模型，得到输出结果。
+
+3. 后续流式推理阶段，得到一帧新的图像，送入dinov2编码器，并拼接special_tokens后，
+输入到frame_attention_0_block，得到这一帧的frame_tokens_0，将它和历史frame_tokens_0拼接，
+送入到global_attention_0_block，得到新的global_tokens_0，并取出最新一帧对应的global_tokens，
+重新送入frame_attention_1_block，结合历史frame_tokens_0，送入global_attention，以此重复。
+这里特殊的是，每次frame_attention总是计算最新一帧，因为frame_attention是帧内的。
+而global_attention总是需要结合历史frame_attention的输出，总共24份历史frame_attention输出。
+并且global_attention采用了KV-Cache，利用上面说的输入特性，加速整体推理。
+
+基于上面的推理流程，我们计划采用这样的路线在jetson上，使用c++代码，利用tensorrt来做模型部署。
+
+1. 将整个模型拆分为多个部分：dinov2编码器、frame_attention共24个模型、global_attention共24个模型、camera_head头或其他头。
+
+2. 这里frame_attention的输入不止是dinov2编码器输出的image_tokens，还需要几个special_tokens，需要明确。
+
+3. global_attention的输入也还包含一些特殊输入，需要明确。且由于需要用到global_attention的kv-cache机制，我们可能
+需要自行编写tensorrt的plugin插件。
+
+需要你判断上面的路线是否合理。并且针对我上面提出的一些不明确内容，结合代码明确下来。
